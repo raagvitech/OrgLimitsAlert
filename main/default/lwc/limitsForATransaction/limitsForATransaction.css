@@ -1,0 +1,23 @@
+.mini-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 18px;
+    padding: 16px;
+}
+
+.mini-chart-cell {
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+}
+
+.mini-chart-label {
+    margin-top: 6px;
+    text-align: center;
+    font-size: 0.85rem;
+    word-break: break-all;
+}

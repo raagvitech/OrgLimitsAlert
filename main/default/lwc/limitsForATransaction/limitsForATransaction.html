@@ -1,0 +1,19 @@
+<template>
+    <lightning-card title="Limits Dashboard" icon-name="custom:custom63">
+        <template if:true={limits}>
+            <lightning-button-icon icon-name="utility:refresh" onclick={handleRefresh}
+                class="slds-p-right_large"></lightning-button-icon>
+            <div class="mini-chart-grid">
+                <template for:each={limits} for:item="limit">
+                    <div key={limit.name} class="mini-chart-cell">
+                        <canvas data-id={limit.name} width="80" height="80"></canvas>
+                        <div class="mini-chart-label">
+                            <span class="slds-p-right_small">{limit.name}</span>
+                            <span>{limit.used} / {limit.max}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </lightning-card>
+</template>
