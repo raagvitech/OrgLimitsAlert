@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Stores cron expression for scheduling</description>
+    <label>Org Limit Schedule Config</label>
+    <pluralLabel>Org Limit Schedule Configs</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>
