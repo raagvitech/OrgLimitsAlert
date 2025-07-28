@@ -1,19 +1,31 @@
 <template>
-    <lightning-card title="Limits Dashboard" icon-name="custom:custom63">
-        <template if:true={limits}>
-            <lightning-button-icon icon-name="utility:refresh" onclick={handleRefresh}
-                class="slds-p-right_large"></lightning-button-icon>
-            <div class="mini-chart-grid">
-                <template for:each={limits} for:item="limit">
-                    <div key={limit.name} class="mini-chart-cell">
-                        <canvas data-id={limit.name} width="80" height="80"></canvas>
-                        <div class="mini-chart-label">
-                            <span class="slds-p-right_small">{limit.name}</span>
-                            <span>{limit.used} / {limit.max}</span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </template>
+    <lightning-card title="Org Limits Dashboard" icon-name="custom:custom63">
+        <lightning-button label="Refresh" icon-name="utility:refresh" onclick={handleRefresh}
+            class="slds-float_right slds-p-right_large"></lightning-button>
+
+        <div class="slds-box slds-p-around_large slds-p-horizontal_large">
+            <lightning-tabset>
+                <div class="tab-buttons">
+                    <template for:each={categorizedLimits} for:item="group">
+                        <lightning-tab class="slds-m-around_x-small custom-tab" key={group.type} label={group.label}
+                            value={group.type} onactive={handleTabChange}>
+                            <div class="mini-chart-grid">
+                                <template for:each={group.limits} for:item="limit">
+                                    <div key={limit.name} class="mini-chart-cell">
+                                        <canvas data-id={limit.name} lwc:dom="manual" width="100" height="50"></canvas>
+                                        <div class="chart-values">
+                                            <div class="used-value">{limit.used}</div>
+                                            <div class="max-value">{limit.max}</div>
+                                        </div>
+                                        <div class="mini-chart-label">{limit.name}</div>
+                                        <!-- <div class="mini-chart-summary">{limit.used} of {limit.max} consumed</div> -->
+                                    </div>
+                                </template>
+                            </div>
+                        </lightning-tab>
+                    </template>
+                </div>
+            </lightning-tabset>
+        </div>
     </lightning-card>
 </template>
