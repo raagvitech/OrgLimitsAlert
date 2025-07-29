@@ -76,14 +76,6 @@ export default class LimitsForATransaction extends LightningElement {
                 this.error = error;
             });
     }
-    getTwoLineName(name) {
-        if (!name) return '';
-        const words = name.split(' ');
-        if (words.length < 2) return name;
-        // Split roughly in half
-        const mid = Math.ceil(words.length / 2);
-        return words.slice(0, mid).join(' ') + '<br>' + words.slice(mid).join(' ');
-    }
     getColorByPercent(percent) {
         if (percent < 80) {
             return '#2ECC71'; // Green
@@ -98,9 +90,7 @@ export default class LimitsForATransaction extends LightningElement {
         this.limits.forEach((limit) => {
             const canvas = this.template.querySelector(`canvas[data-id="${limit.name}"]`);
             const percent = limit.max && limit.max !== 0 ? Math.round((limit.used / limit.max) * 100) : 0;
-            const usedColor = percent >= 90 ? this.ALERT_COLOR : this.DEFAULT_COLOR;
-            // const usedColor =   this.getColorByPercent(percent);          
-
+            const displayPercent =  percent >= 100 ? 100 : percent;
             if (canvas) {
                 if (canvas.chartInstance) {
                     canvas.chartInstance.destroy();
@@ -113,16 +103,16 @@ export default class LimitsForATransaction extends LightningElement {
             let data = [];
             let backgroundColor = [];
 
-            if (percent <= 80) {
-                data = [percent, 100 - percent];
+            if (displayPercent <= 80) {
+                data = [displayPercent, 100 - displayPercent];
                 backgroundColor = [green, grey];
-            } else if (percent <= 90) {
-                data = [80, percent - 80, 100 - percent];
+            } else if (displayPercent <= 90) {
+                data = [80, displayPercent - 80, 100 - displayPercent];
                 backgroundColor = [green, orange, grey];
             } else {
-                console.log('percent in else'+percent);
+                //console.log('percent in else'+percent);
                 
-                data = [80, 10, percent - 90, 100 - percent];
+                data = [80, 10, displayPercent - 90, 100 - displayPercent];
                 backgroundColor = [green, orange, red, grey];
             }
                 const ctx = canvas.getContext('2d');
@@ -136,30 +126,10 @@ export default class LimitsForATransaction extends LightningElement {
                             borderWidth: 1
                         }]
                     },
-                    // data: {
-                    //     labels: ["Used", "Remaining"],
-                    //     datasets: [
-                    //       {
-                    //         data: [percent, 100 - percent],
-                    //         backgroundColor: [usedColor, "#E0E0E0"],
-                    //         borderWidth: 1,
-                    //       },
-                    //     ],
-                    //   },
-            
-                    // data: {
-                    //     labels: ['Used', 'Remaining'],
-                    //     datasets: [{
-                    //         data: [percent, 100 - percent],
-                    //         backgroundColor: [usedColor, '#e0e0e0'],
-                    //         borderWidth: 1
-                    //     }],
-                       
-                    // },
                     options: {
                         rotation: -Math.PI,
                         circumference: Math.PI,
-                        cutoutPercentage: 70,
+                        cutoutPercentage: 80,
                         tooltips: { enabled: false },
                         legend: { display: false },
                         animation: {
@@ -174,7 +144,7 @@ export default class LimitsForATransaction extends LightningElement {
                                 ctx.font = `${fontSize}px Arial`;
                                 ctx.textBaseline = 'middle';
                                 ctx.fillStyle = '#000';
-                                const text = `${percent}%`;
+                                const text = `${displayPercent}%`;
                                 console.log('text' +text );
                                 
                                 const textX = Math.round((width - ctx.measureText(text).width) / 2);
@@ -190,42 +160,7 @@ export default class LimitsForATransaction extends LightningElement {
             }
         });
     }
-    get groupedLimits() {
-        const groups = {};
-        this.limits.forEach(limit => {
-            const category = limit.category || 'Other';
-            if (!groups[category]) {
-                groups[category] = [];
-            }
-            // Add two-line name for each limit
-            const [line1, line2] = this.splitNameTwoLines(limit.name);
-            groups[category].push({ ...limit, line1, line2 });
-        });
-       // return Object.entries(groups).map(([category, limits]) => ({ category, limits }));
-       return Object.entries(categories).map(([type, limits]) => {
-        const shouldHighlight = limits.some(limit => {
-            const percent = limit.max && limit.max !== 0 ? Math.round((limit.used / limit.max) * 100) : 0;
-            return percent >= 90;
-        });
-        return { type, limits, highlight: shouldHighlight };
-    });
-    }
-    getTabClass(group) {
-        return group.highlight ? 'tab-alert' : '';
-    }
-    splitNameTwoLines(name) {
-        if (!name) return ['', ''];
-        const words = name.split(' ');
-        if (words.length < 2) {
-            const mid = Math.ceil(name.length / 2);
-            return [name.slice(0, mid), name.slice(mid)];
-        }
-        const mid = Math.ceil(words.length / 2);
-        return [
-            words.slice(0, mid).join(' '),
-            words.slice(mid).join(' ')
-        ];
-    }
+    
     get categorizedLimits() {
         const categories = {
             API: [],
@@ -261,19 +196,22 @@ export default class LimitsForATransaction extends LightningElement {
                 categories.Others.push(limit);
             }
         });
-        // Convert to array for template iteration
-        // return Object.entries(categories).map(([type, limits]) => ({ type, limits }));
         return Object.entries(categories).map(([type, limits]) => {
-            const overLimit = limits.some(l => l.max > 0 && (l.used / l.max) * 100 >= 80);
-            const label = overLimit ? '⚠️ ' + this.labelMap[type] : this.labelMap[type];
-            return { type, limits, label };
+            const updatedLimits = limits.map(l => {
+                const used = (l.name === 'FileStorageMB' || l.name === 'DataStorageMB') && l.used > l.max ? l.max : l.used;
+                return {
+                    ...l,
+                used
+                };
+            });
+            const overLimit = limits.some(l => l.max > 0 && (l.used / l.max) * 100 >= 90);
+            const label = overLimit ? this.labelMap[type] + '⚠️ '  : this.labelMap[type];
+            // const cappedUsed = actualUsed > maxValue ? maxValue : actualUsed;
+            return { type, limits:updatedLimits, label };
         });
     }
     handleTabChange(event) {
         const tabLabel = event.target.label;
-        console.log('tabLabel'+tabLabel);
-        
-        // Delay to allow DOM to render
         setTimeout(() => {
             this.initializeCharts();
         }, 0);
