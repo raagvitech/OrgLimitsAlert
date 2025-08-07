@@ -1,31 +1,82 @@
 <template>
     <lightning-card title="Org Limits Dashboard" icon-name="custom:custom63">
-        <lightning-button label="Refresh" icon-name="utility:refresh" onclick={handleRefresh}
-            class="slds-float_right slds-p-right_large"></lightning-button>
+        <lightning-button
+            label="Refresh"
+            icon-name="utility:refresh"
+            onclick={handleRefresh}
+            class="slds-float_right slds-p-right_large">
+        </lightning-button>
 
         <div class="slds-box slds-p-around_large slds-p-horizontal_large">
             <lightning-tabset>
-                <div class="tab-buttons">
-                    <template for:each={categorizedLimits} for:item="group">
-                        <lightning-tab class="slds-m-around_x-small custom-tab" key={group.type} label={group.label}
-                            value={group.type} onactive={handleTabChange}>
-                            <div class="mini-chart-grid">
-                                <template for:each={group.limits} for:item="limit">
-                                    <div key={limit.name} class="mini-chart-cell">
-                                        <canvas data-id={limit.name} lwc:dom="manual" width="100" height="50"></canvas>
-                                        <div class="chart-values">
-                                            <div class="used-value">{limit.used}</div>
-                                            <div class="max-value">{limit.max}</div>
-                                        </div>
-                                        <div class="mini-chart-label">{limit.name}</div>
-                                        <!-- <div class="mini-chart-summary">{limit.used} of {limit.max} consumed</div> -->
+                <div class="tab-buttons"></div>
+                <template for:each={categorizedLimits} for:item="group">
+                    <lightning-tab
+                        class="slds-m-around_x-small custom-tab"
+                        key={group.type}
+                        label={group.label}
+                        value={group.type}
+                        onactive={handleTabChange}>
+
+                        <div class="mini-chart-grid">
+                            <template for:each={group.limits} for:item="limit">
+                                <div key={limit.name} class="mini-chart-cell">
+                                    <canvas
+                                        data-id={limit.name}
+                                        lwc:dom="manual"
+                                        width="180"
+                                        height="110">
+                                    </canvas>
+
+                                    <lightning-icon
+                                        if:true={limit.showBulb}
+                                        icon-name="utility:light_bulb"
+                                        alternative-text="Suggestions"
+                                        title="Click for suggestions"
+                                        onclick={handleSuggestionClick}
+                                        data-limit-name={limit.name}
+                                        class="bulb-icon"
+                                        size="xx-small"
+                                        ></lightning-icon>
+
+                                    <div class="chart-values">
+                                        <div class="used-value">{limit.used}</div>
+                                        <div class="max-value">{limit.max}</div>
                                     </div>
-                                </template>
-                            </div>
-                        </lightning-tab>
-                    </template>
-                </div>
+                                    <div class="mini-chart-label">{limit.name}</div>
+                                </div>
+                            </template>
+                        </div>
+                    </lightning-tab>
+                </template>
             </lightning-tabset>
         </div>
     </lightning-card>
+
+    <template if:true={showSuggestions}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <h2 class="slds-modal__title slds-hyphenate">
+                        <b>Storage Optimization Recommendations For {selectedLimitName}</b>
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <ul>
+                        <template for:each={currentSuggestions} for:item="tip">
+                            <li key={tip}>• {tip}</li>
+                        </template>
+                    </ul>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        variant="neutral"
+                        label="Close"
+                        onclick={closeSuggestions}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>
