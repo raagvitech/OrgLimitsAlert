@@ -90,14 +90,7 @@ export default class LimitsForATransaction extends LightningElement {
         this.error = error;
       });
   }
-  getTwoLineName(name) {
-    if (!name) return "";
-    const words = name.split(" ");
-    if (words.length < 2) return name;
-    // Split roughly in half
-    const mid = Math.ceil(words.length / 2);
-    return words.slice(0, mid).join(" ") + "<br>" + words.slice(mid).join(" ");
-  }
+
   getColorByPercent(percent) {
     if (percent < 80) {
       return "#2ECC71"; // Green
@@ -109,6 +102,33 @@ export default class LimitsForATransaction extends LightningElement {
   }
   initializeCharts() {
     if (!window.Chart) return;
+
+    // Register plugin only once
+    if (!Chart.plugins.getAll().some((p) => p.id === "centerTextPlugin")) {
+      Chart.plugins.register({
+        id: "centerTextPlugin",
+        afterDraw: function (chart) {
+          const ctx = chart.chart.ctx;
+          const width = chart.chart.width;
+          const height = chart.chart.height;
+          const percent = chart.config.data.metaPercent || 0;
+          const text = `${percent}%`;
+
+          ctx.save();
+          const fontSize = (height / 5).toFixed(2);
+          ctx.font = `${fontSize}px Arial`;
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#000";
+
+          const textX = Math.round((width - ctx.measureText(text).width) / 2);
+          const textY = height / 1.25;
+
+          ctx.fillText(text, textX, textY);
+          ctx.restore();
+        },
+      });
+    }
+
     this.limits.forEach((limit) => {
       const canvas = this.template.querySelector(
         `canvas[data-id="${limit.name}"]`
@@ -117,13 +137,13 @@ export default class LimitsForATransaction extends LightningElement {
         limit.max && limit.max !== 0
           ? Math.round((limit.used / limit.max) * 100)
           : 0;
-      const usedColor = percent >= 90 ? this.ALERT_COLOR : this.DEFAULT_COLOR;
-      // const usedColor =   this.getColorByPercent(percent);
+      const displayPercent = Math.min(percent, 100); // cap at 100%
 
       if (canvas) {
         if (canvas.chartInstance) {
           canvas.chartInstance.destroy();
         }
+
         const green = "#2ECC71";
         const orange = "#F39C12";
         const red = "#E74C3C";
@@ -139,13 +159,13 @@ export default class LimitsForATransaction extends LightningElement {
           data = [80, displayPercent - 80, 100 - displayPercent];
           backgroundColor = [green, orange, grey];
         } else {
-          console.log("percent in else" + percent);
-
-          data = [80, 10, percent - 90, 100 - percent];
+          data = [80, 10, displayPercent - 90, 100 - displayPercent];
           backgroundColor = [green, orange, red, grey];
         }
+
         const ctx = canvas.getContext("2d");
-        canvas.chartInstance = new window.Chart(ctx, {
+
+        const chartConfig = {
           type: "doughnut",
           data: {
             labels: ["Used", "Remaining"],
@@ -153,102 +173,28 @@ export default class LimitsForATransaction extends LightningElement {
               {
                 data: data,
                 backgroundColor: backgroundColor,
-                borderWidth: 1,
+                borderWidth: 0, // to avoid unwanted gaps
               },
             ],
+            metaPercent: displayPercent, // used by plugin
           },
-          // data: {
-          //     labels: ["Used", "Remaining"],
-          //     datasets: [
-          //       {
-          //         data: [percent, 100 - percent],
-          //         backgroundColor: [usedColor, "#E0E0E0"],
-          //         borderWidth: 1,
-          //       },
-          //     ],
-          //   },
-
-          // data: {
-          //     labels: ['Used', 'Remaining'],
-          //     datasets: [{
-          //         data: [percent, 100 - percent],
-          //         backgroundColor: [usedColor, '#e0e0e0'],
-          //         borderWidth: 1
-          //     }],
-
-          // },
           options: {
+            responsive: false,
+            animation: false, // disables flickering
             rotation: -Math.PI,
             circumference: Math.PI,
-            cutoutPercentage: 70,
+            cutoutPercentage: 80,
             tooltips: { enabled: false },
             legend: { display: false },
-            animation: {
-              animateRotate: true,
-              onComplete: function () {
-                const chartInstance = this.chart;
-                const ctx = chartInstance.ctx;
-                const width = chartInstance.width;
-                const height = chartInstance.height;
-                ctx.restore();
-                const fontSize = (height / 5).toFixed(2);
-                ctx.font = `${fontSize}px Arial`;
-                ctx.textBaseline = "middle";
-                ctx.fillStyle = "#000";
-                const text = `${percent}%`;
-                console.log("text" + text);
-
-                const textX = Math.round(
-                  (width - ctx.measureText(text).width) / 2
-                );
-                console.log("text in  textX " + textX);
-                const textY = height / 1.25;
-                console.log("text in  textY " + textY);
-                ctx.fillText(text, textX, textY);
-                ctx.save();
-              },
-            },
+            events: [], // disables hover re-renders
           },
-        });
+        };
+
+        canvas.chartInstance = new Chart(ctx, chartConfig);
       }
     });
   }
-  get groupedLimits() {
-    const groups = {};
-    this.limits.forEach((limit) => {
-      const category = limit.category || "Other";
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      // Add two-line name for each limit
-      const [line1, line2] = this.splitNameTwoLines(limit.name);
-      groups[category].push({ ...limit, line1, line2 });
-    });
-    // return Object.entries(groups).map(([category, limits]) => ({ category, limits }));
-    return Object.entries(categories).map(([type, limits]) => {
-      const shouldHighlight = limits.some((limit) => {
-        const percent =
-          limit.max && limit.max !== 0
-            ? Math.round((limit.used / limit.max) * 100)
-            : 0;
-        return percent >= 90;
-      });
-      return { type, limits, highlight: shouldHighlight };
-    });
-  }
-  getTabClass(group) {
-    return group.highlight ? "tab-alert" : "";
-  }
-  splitNameTwoLines(name) {
-    if (!name) return ["", ""];
-    const words = name.split(" ");
-    if (words.length < 2) {
-      const mid = Math.ceil(name.length / 2);
-      return [name.slice(0, mid), name.slice(mid)];
-    }
-    const mid = Math.ceil(words.length / 2);
-    return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
-  }
+
   get categorizedLimits() {
     const categories = {
       API: [],
@@ -264,47 +210,57 @@ export default class LimitsForATransaction extends LightningElement {
 
     this.limits.forEach((limit) => {
       const name = limit.name ? limit.name.toLowerCase() : "";
-      if (name.includes("api")) {
-        categories.API.push(limit);
-      } else if (name.includes("storage") || name.includes("content")) {
-        categories.Storage.push(limit);
-      } else if (
-        name.includes("event") ||
-        name.includes("stream") ||
-        name.includes("platformevent")
-      ) {
-        categories.PlatformEvents.push(limit);
-      } else if (name.includes("email")) {
-        categories.Email.push(limit);
-      } else if (name.includes("dashboard") || name.includes("report")) {
-        categories.ReportsDashboards.push(limit);
-      } else if (name.includes("einstein") || name.includes("analytics")) {
-        categories.Analytics.push(limit);
-      } else if (name.includes("apex") || name.includes("workflow")) {
-        categories.AsyncApex.push(limit);
-      } else if (name.includes("metadata") || name.includes("package")) {
-        categories.MetadataDeploy.push(limit);
-      } else {
-        categories.Others.push(limit);
-      }
+      const percent = limit.max
+        ? Math.round((limit.used / limit.max) * 100)
+        : 0;
+
+      const limitWithStyle = {
+        ...limit,
+        percentUsed: percent,
+        showBulb: limit.threshold ? percent >= limit.threshold : percent >= 90,
+      };
+
+      if (name.includes("api")) categories.API.push(limitWithStyle);
+      else if (name.includes("storage") || name.includes("content"))
+        categories.Storage.push(limitWithStyle);
+      else if (name.includes("event") || name.includes("stream"))
+        categories.PlatformEvents.push(limitWithStyle);
+      else if (name.includes("email")) categories.Email.push(limitWithStyle);
+      else if (name.includes("dashboard") || name.includes("report"))
+        categories.ReportsDashboards.push(limitWithStyle);
+      else if (name.includes("einstein") || name.includes("analytics"))
+        categories.Analytics.push(limitWithStyle);
+      else if (name.includes("apex") || name.includes("workflow"))
+        categories.AsyncApex.push(limitWithStyle);
+      else if (name.includes("metadata") || name.includes("package"))
+        categories.MetadataDeploy.push(limitWithStyle);
+      else categories.Others.push(limitWithStyle);
     });
-    // Convert to array for template iteration
-    // return Object.entries(categories).map(([type, limits]) => ({ type, limits }));
+
     return Object.entries(categories).map(([type, limits]) => {
+      const updatedLimits = limits.map((l) => {
+        const used =
+          (l.name === "FileStorageMB" || l.name === "DataStorageMB") &&
+          l.used > l.max
+            ? l.max
+            : l.used;
+        return {
+          ...l,
+          used,
+        };
+      });
+
       const overLimit = limits.some(
-        (l) => l.max > 0 && (l.used / l.max) * 100 >= 80
+        (l) => l.max > 0 && (l.used / l.max) * 100 >= 90
       );
       const label = overLimit
-        ? "⚠️ " + this.labelMap[type]
+        ? this.labelMap[type] + "⚠️ "
         : this.labelMap[type];
-      return { type, limits, label };
+      return { type, limits: updatedLimits, label };
     });
   }
-  handleTabChange(event) {
-    const tabLabel = event.target.label;
-    console.log("tabLabel" + tabLabel);
 
-    // Delay to allow DOM to render
+  handleTabChange() {
     setTimeout(() => {
       this.initializeCharts();
     }, 0);
